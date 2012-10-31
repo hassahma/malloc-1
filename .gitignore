@@ -1,3 +1,4 @@
 .svn
 mdriver
 *.o
+traces/
