@@ -378,16 +378,19 @@ void *mm_realloc(void *ptr, size_t size)
      */
     if (blk_free(next_block) && (oldsize > size)) {
 
-	/*
-	 * ALIGN PAYLOAD TO 8 BYTES
-	 */
-	
 	// mark next block as used
 	mark_block_used(next_block, blk_size(next_block));
+
 	// removed block from freelist
 	list_remove(&next_block->elem);
+
 	// update current block size
-	oldblock->header.size = oldsize + next_size;
+	size_t new_size = oldsize + next_size;
+	printf("SIZE:: %u  ", new_size);   /////////////// COMPARE THIS
+	new_size += 2 * sizeof(struct boundary_tag);
+	new_size = (new_size + DSIZE - 1) & ~(DSIZE - 1);
+	oldblock->header.size = new_size;
+	printf("UPDATED SIZE:%u\n", new_size); //////////// AND THIS
     	return oldblock;
     }
 
