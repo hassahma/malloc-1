@@ -436,16 +436,15 @@ void mm_checkheap(int verbose)
  #ifdef SEG_LISTS
  static void init_free_lists()
 {
-	list_init(&free_list);
-
-	int i;
-	for(i = MAX_BLOCK; i >= MIN_BLOCK; i /= STEP_AMOUNT) 
-	{
-		struct free_blocks *setupblocks = mem_sbrk(sizeof(struct free_blocks));
-		setupblocks->size = i;
-		list_init(&setupblocks->free_blocks_list);
-		list_push_back(&free_list, &setupblocks->elem);
-	}
+    list_init(&free_list);
+    int i;
+    
+    for(i = MAX_BLOCK; i >= MIN_BLOCK; i /= STEP_AMOUNT) {
+	struct free_blocks *setupblocks = mem_sbrk(sizeof(struct free_blocks));
+	setupblocks->size = i;
+	list_init(&setupblocks->free_blocks_list);
+	list_push_back(&free_list, &setupblocks->elem);
+    }
 }
 #endif
 
@@ -454,7 +453,6 @@ void mm_checkheap(int verbose)
  */
 static struct block *extend_heap(size_t words) 
 {
-	// printf("\nstarting extendheap");
     void *bp;
 
     /* Allocate an even number of words to maintain alignment */
@@ -468,9 +466,7 @@ static struct block *extend_heap(size_t words)
     mark_block_free(blk, words);
     next_blk(blk)->header = FENCE;
 
-	// printf("\nextend heap by block of size: %i", blk_size(blk));
     /* Coalesce if the previous block was free */
-	// printf("\nextendheap successful, calling coalesce");
     return coalesce(blk);
 }
 
@@ -515,50 +511,45 @@ static struct block *find_fit(size_t asize)
 #endif
 #ifdef SEG_LISTS
     
-//    printf("\nstart search");
-	struct list_elem *e3;
-	for (e3 = list_rbegin (&free_list); e3 != list_rend (&free_list);
-           e3 = list_prev (e3))
-    {
-        struct free_blocks *seg_blocks = list_entry (e3, struct free_blocks, elem);
-		if (!list_empty(&seg_blocks->free_blocks_list) && (seg_blocks->size >= asize || list_prev(e3) == list_rend(&free_list))) {
-			struct list_elem *e4;
+    struct list_elem *e3;
+    for (e3 = list_rbegin (&free_list); e3 != list_rend (&free_list); e3 = list_prev (e3)) {
+
+	struct free_blocks *seg_blocks = list_entry (e3, struct free_blocks, elem);
+
+	if (!list_empty(&seg_blocks->free_blocks_list) && (seg_blocks->size >= asize || list_prev(e3) == list_rend(&free_list))) {
+	    struct list_elem *e4;
             struct list_elem *e5 = list_rbegin(&seg_blocks->free_blocks_list);
-			for (e4 = list_begin (&seg_blocks->free_blocks_list); e4 != list_end (&seg_blocks->free_blocks_list);
-				   e4 = list_next (e4))
-			{
-                
-                
-				struct block *foundblock = list_entry (e4, struct block, elem);
+	    for (e4 = list_begin (&seg_blocks->free_blocks_list); e4 != list_end (&seg_blocks->free_blocks_list); e4 = list_next (e4)) {
+
+		struct block *foundblock = list_entry (e4, struct block, elem);
                 struct block *foundblock2 = list_entry (e5, struct block, elem);
-//                printf("\nSize of Block: %i, Searching Size: %i", blk_size(foundblock), asize);
-				if (blk_size(foundblock) >= asize)
-				{
-					// place(foundblock, blk_size(foundblock));
-					// mark_block_used(foundblock, blk_size(foundblock));
-					// printf("\nblock found");				    
-				    return foundblock;
-				}
-                if (blk_size(foundblock2) >= asize)
-				{
-				    // place(foundblock, blk_size(foundblock));
-				    // mark_block_used(foundblock, blk_size(foundblock));
-				    // printf("\nblock found");
-				    return foundblock2;
-				}
+
+		if (blk_size(foundblock) >= asize) {
+		    // place(foundblock, blk_size(foundblock));
+		    // mark_block_used(foundblock, blk_size(foundblock));
+		    // printf("\nblock found");				    
+		    return foundblock;
+		}
+
+		if (blk_size(foundblock2) >= asize) {
+		    // place(foundblock, blk_size(foundblock));
+		    // mark_block_used(foundblock, blk_size(foundblock));
+		    // printf("\nblock found");
+		    return foundblock2;
+		}
                 
                 e5 = list_prev(e5);
                 if (e4 == e5 || list_next(e5) == e4) {
                     return NULL;
                 }
-			}
-		}
+	    }
+	}
     }
-//	printf("\nno block found");
-	return NULL;
+
+    return NULL;
 	
 #else 
-	// printf("TESTTT");
+    // printf("TESTTT");
     /* First fit search */
 	struct list_elem *e2;
 	
