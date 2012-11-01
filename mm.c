@@ -17,7 +17,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <assert.h>
-#include <time.h>
 
 #include "mm.h"
 #include "memlib.h"
@@ -47,7 +46,7 @@ const struct boundary_tag FENCE = { .inuse = 1, .size = 0 };
 struct block {
     struct boundary_tag header; /* offset 0, at address 4 mod 8 */
     char payload[0];            /* offset 4, at address 0 mod 8 */
-    struct list_elem elem;
+	struct list_elem elem;
 };
 
 /*
@@ -134,7 +133,7 @@ static void set_header_and_footer(struct block *blk, int size, int inuse) {
     * get_footer(blk) = blk->header;    /* Copy header to footer */
 }
 
-/* Mark a block as used and  its size. */
+/* Mark a block as used and set its size. */
 static void mark_block_used(struct block *blk, int size) {
     set_header_and_footer(blk, size, 1);
 }
@@ -196,12 +195,12 @@ int mm_init(void)
  */
 void *mm_malloc(size_t size)
 {
-    
-    // printf("\nstarting malloc");
-    //count++;
-    //printf("BEGIN MALLOC: %d\n", count);
-    //printFreeBlockList();
-    
+
+	// printf("\nstarting malloc");
+	//count++;
+	//printf("BEGIN MALLOC: %d\n", count);
+	//printFreeBlockList();
+	
     size_t awords;      /* Adjusted block size in words */
     size_t extendwords;  /* Amount to extend heap if no fit */
     struct block *bp;      
@@ -222,21 +221,21 @@ void *mm_malloc(size_t size)
     /* Search the free list for a fit */
     if ((bp = find_fit(awords)) != NULL) {
         place(bp, awords);
-	// mark_block_used(bp, blk_size(bp));
-	// list_remove(&bp->elem);
-	// printf("\nmalloc successful");
+		// mark_block_used(bp, blk_size(bp));
+		// list_remove(&bp->elem);
+		// printf("\nmalloc successful");
         return bp->payload;
     }
 
     /* No fit found. Get more memory and place the block */
-    //	printf("\nno fit found for %i, extending", awords);
+//	printf("\nno fit found for %i, extending", awords);
     extendwords = MAX(awords,CHUNKSIZE);
     if ((bp = extend_heap(extendwords)) == NULL)  
         return NULL;
-    place(bp, awords);
-    // mark_block_used(bp, blk_size(bp));
-    // list_remove(&bp->elem);
-    // printf("\nextend malloc successful");
+	place(bp, awords);
+	// mark_block_used(bp, blk_size(bp));
+	// list_remove(&bp->elem);
+	// printf("\nextend malloc successful");
     return bp->payload;
 } 
 
@@ -329,20 +328,22 @@ static void add_freeblock(struct block *blk)
 {
 	// printf("\nadd freeblock started");
 #ifdef SEG_LISTS
-
-    if (blk == 0)
-	return;
-    
-    struct list_elem *e;
-    
-    for (e = list_begin (&free_list); e != list_end (&free_list); e = list_next (e)) {
-	struct free_blocks *seg_blocks = list_entry (e, struct free_blocks, elem);
-	if (seg_blocks->size <= blk_size(blk)) {
-	    list_push_back(&seg_blocks->free_blocks_list, &blk->elem);
-	    return;
-	}
+	if (blk == 0)
+		return;
+		
+	struct list_elem *e;
+	
+	for (e = list_begin (&free_list); e != list_end (&free_list);
+           e = list_next (e))
+    {
+        struct free_blocks *seg_blocks = list_entry (e, struct free_blocks, elem);
+		if (seg_blocks->size <= blk_size(blk)) {
+			list_push_back(&seg_blocks->free_blocks_list, &blk->elem);
+//			print_free_block_list();
+			// printf("\nadd freeblock successful");
+			return;
+		}
     }
-    
 #else
 	list_push_back(&free_list, &blk->elem);
 #endif
@@ -353,74 +354,70 @@ static void add_freeblock(struct block *blk)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
+	//printf("BEGIN REALLOC\n");
+	
     size_t oldsize;
+	size_t oldsize2;
     void *newptr;
 
     /* If size == 0 then this is just free, and we return NULL. */
-    if (size == 0) {
+    if(size == 0) {
         mm_free(ptr);
         return 0;
     }
 
     /* If oldptr is NULL, then this is just malloc. */
-    if (ptr == NULL) {
+    if(ptr == NULL) {
         return mm_malloc(size);
     }
 
-    struct block *oldblock = ptr - offsetof(struct block, payload);
-    oldsize = blk_size(oldblock) * WSIZE;
-    struct block *next_block = next_blk(oldblock);
-    size_t next_size = blk_size(next_block);
-    
-    /*
-     * If new size is larger than block and next block is free, then
-     * extend current block.
-     */
-    if (blk_free(next_block) && (oldsize > size)) {
+	struct block *oldblock = ptr - offsetof(struct block, payload);
+	bool prev_alloc = prev_blk_footer(oldblock)->inuse;
+    bool next_alloc = !blk_free(next_blk(oldblock));
 
-	// mark next block as used
-	mark_block_used(next_block, blk_size(next_block));
-
-	// removed block from freelist
-	list_remove(&next_block->elem);
-
-	// update current block size
-	size_t new_size = oldsize + next_size;
-	printf("SIZE:: %u  ", new_size);   /////////////// COMPARE THIS
-	new_size += 2 * sizeof(struct boundary_tag);
-	new_size = (new_size + DSIZE - 1) & ~(DSIZE - 1);
-	oldblock->header.size = new_size;
-	printf("UPDATED SIZE:%u\n", new_size); //////////// AND THIS
-    	return oldblock;
-    }
-
-    /*
-     * Otherwise, if new size is smaller than block size, then shrink
-     * current block.
-     */
-    //else if (blk_free(next_block) && size < oldsize) {
-	/// IMPLEMENT
-    //}
-
-    /* Otherwise, malloc, copy and free. */
-    else {
-
-	newptr = mm_malloc(size);
-	
-	/* If realloc() fails the original block is left untouched  */
-	if(!newptr) {
-	    return 0;
+	if(!next_alloc) {
+		struct block *temp;
+		temp = next_blk(oldblock);
+		list_remove(&temp->elem);
+        mark_block_used(oldblock, blk_size(oldblock) + blk_size(next_blk(oldblock)));
 	}
 	
-	/* Copy the old data. */
-	if (size < oldsize) oldsize = size;
-	memcpy(newptr, ptr, oldsize);
+	if(blk_size(oldblock) >= size) {
+		return oldblock->payload;
+	}
 	
-	/* Free the old block. */
-	mm_free(ptr);
+	if(!prev_alloc) {
+		struct block *temp;
+		temp = prev_blk(oldblock);
+		list_remove(&temp->elem);
+        mark_block_used(temp, blk_size(oldblock) + blk_size(temp));
+		oldblock = temp;
+	}
 	
-	return newptr;
+	if(blk_size(oldblock) >= size) {
+		oldsize = blk_size(oldblock) * WSIZE;
+	    if(size < oldsize) oldsize = size;
+		memcpy(oldblock->payload, ptr, oldsize);
+		return oldblock->payload;
+	}
+
+    newptr = mm_malloc(size);
+
+    /* If realloc() fails the original block is left untouched  */
+    if(!newptr) {
+        return 0;
     }
+
+    /* Copy the old data. */
+    struct block *oldblock2 = ptr - offsetof(struct block, payload);
+    oldsize2 = blk_size(oldblock2) * WSIZE;
+    if(size < oldsize2) oldsize2 = size;
+    memcpy(newptr, ptr, oldsize2);
+
+    /* Free the old block. */
+	mm_free(oldblock->payload);
+
+    return newptr;
 }
 
 /* 
@@ -436,15 +433,16 @@ void mm_checkheap(int verbose)
  #ifdef SEG_LISTS
  static void init_free_lists()
 {
-    list_init(&free_list);
-    int i;
-    
-    for(i = MAX_BLOCK; i >= MIN_BLOCK; i /= STEP_AMOUNT) {
-	struct free_blocks *setupblocks = mem_sbrk(sizeof(struct free_blocks));
-	setupblocks->size = i;
-	list_init(&setupblocks->free_blocks_list);
-	list_push_back(&free_list, &setupblocks->elem);
-    }
+	list_init(&free_list);
+
+	int i;
+	for(i = MAX_BLOCK; i >= MIN_BLOCK; i /= STEP_AMOUNT) 
+	{
+		struct free_blocks *setupblocks = mem_sbrk(sizeof(struct free_blocks));
+		setupblocks->size = i;
+		list_init(&setupblocks->free_blocks_list);
+		list_push_back(&free_list, &setupblocks->elem);
+	}
 }
 #endif
 
@@ -453,6 +451,7 @@ void mm_checkheap(int verbose)
  */
 static struct block *extend_heap(size_t words) 
 {
+	// printf("\nstarting extendheap");
     void *bp;
 
     /* Allocate an even number of words to maintain alignment */
@@ -466,7 +465,9 @@ static struct block *extend_heap(size_t words)
     mark_block_free(blk, words);
     next_blk(blk)->header = FENCE;
 
+	// printf("\nextend heap by block of size: %i", blk_size(blk));
     /* Coalesce if the previous block was free */
+	// printf("\nextendheap successful, calling coalesce");
     return coalesce(blk);
 }
 
@@ -476,18 +477,19 @@ static struct block *extend_heap(size_t words)
  */
 static void place(struct block *bp, size_t asize)
 {
+	// return;
     size_t csize = blk_size(bp);
 
     if ((csize - asize) >= MIN_BLOCK_SIZE_WORDS) {
         mark_block_used(bp, asize);
-	list_remove(&bp->elem);
-	struct block *temp = next_blk(bp);
+		list_remove(&bp->elem);
+		struct block *temp = next_blk(bp);
         mark_block_free(temp, csize-asize);
-	add_freeblock(temp);
+		add_freeblock(temp);
     }
     else { 
         mark_block_used(bp, csize);
-	list_remove(&bp->elem);
+		list_remove(&bp->elem);
     }
 }
 
@@ -499,57 +501,64 @@ static struct block *find_fit(size_t asize)
 	// printf("\nsearching for block");
 #ifdef NEXT_FIT 
     /* Next fit search */	
-    struct list_elem *e;
-    
-    for (e = list_begin (&free_list); e != list_end (&free_list); e = list_next (e)) {
+	struct list_elem *e;
+	
+	for (e = list_begin (&free_list); e != list_end (&free_list);
+           e = list_next (e))
+    {
         struct block *rover = list_entry (e, struct block, elem);
-	if (blk_free(rover) && (asize <= blk_size(rover)))
-	    return rover;	
+		if (blk_free(rover) && (asize <= blk_size(rover)))
+			return rover;
+		
     }
 
     return NULL;  /* no fit found */
 #endif
 #ifdef SEG_LISTS
-    
-    struct list_elem *e3;
-    for (e3 = list_rbegin (&free_list); e3 != list_rend (&free_list); e3 = list_prev (e3)) {
-
-	struct free_blocks *seg_blocks = list_entry (e3, struct free_blocks, elem);
-
-	if (!list_empty(&seg_blocks->free_blocks_list) && (seg_blocks->size >= asize || list_prev(e3) == list_rend(&free_list))) {
-	    struct list_elem *e4;
+//    printf("\nstart search");
+	struct list_elem *e3;
+	for (e3 = list_rbegin (&free_list); e3 != list_rend (&free_list);
+           e3 = list_prev (e3))
+    {
+        struct free_blocks *seg_blocks = list_entry (e3, struct free_blocks, elem);
+		if (!list_empty(&seg_blocks->free_blocks_list) && (seg_blocks->size >= asize || list_prev(e3) == list_rend(&free_list))) {
+			struct list_elem *e4;
             struct list_elem *e5 = list_rbegin(&seg_blocks->free_blocks_list);
-	    for (e4 = list_begin (&seg_blocks->free_blocks_list); e4 != list_end (&seg_blocks->free_blocks_list); e4 = list_next (e4)) {
-
-		struct block *foundblock = list_entry (e4, struct block, elem);
+			for (e4 = list_begin (&seg_blocks->free_blocks_list); e4 != list_end (&seg_blocks->free_blocks_list);
+				   e4 = list_next (e4))
+			{
+                
+                
+				struct block *foundblock = list_entry (e4, struct block, elem);
                 struct block *foundblock2 = list_entry (e5, struct block, elem);
-
-		if (blk_size(foundblock) >= asize) {
-		    // place(foundblock, blk_size(foundblock));
-		    // mark_block_used(foundblock, blk_size(foundblock));
-		    // printf("\nblock found");				    
-		    return foundblock;
-		}
-
-		if (blk_size(foundblock2) >= asize) {
-		    // place(foundblock, blk_size(foundblock));
-		    // mark_block_used(foundblock, blk_size(foundblock));
-		    // printf("\nblock found");
-		    return foundblock2;
-		}
+//                printf("\nSize of Block: %i, Searching Size: %i", blk_size(foundblock), asize);
+				if (blk_size(foundblock) >= asize)
+				{
+					// place(foundblock, blk_size(foundblock));
+					// mark_block_used(foundblock, blk_size(foundblock));
+					// printf("\nblock found");
+					return foundblock;
+				}
+                if (blk_size(foundblock2) >= asize)
+				{
+					// place(foundblock, blk_size(foundblock));
+					// mark_block_used(foundblock, blk_size(foundblock));
+					// printf("\nblock found");
+					return foundblock2;
+				}
                 
                 e5 = list_prev(e5);
                 if (e4 == e5 || list_next(e5) == e4) {
                     return NULL;
                 }
-	    }
-	}
+			}
+		}
     }
-
-    return NULL;
+//	printf("\nno block found");
+	return NULL;
 	
 #else 
-    // printf("TESTTT");
+	// printf("TESTTT");
     /* First fit search */
 	struct list_elem *e2;
 	
