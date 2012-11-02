@@ -32,7 +32,7 @@ clock.o: clock.c clock.h
 list.o: list.c list.h
 
 handin:
-	/home/courses/cs3214/bin/submit.pl p4 mm.c
+	/home/courses/cs3214/bin/submit.pl p3 mm.c
 
 clean:
 	rm -f *~ *.o mdriver
